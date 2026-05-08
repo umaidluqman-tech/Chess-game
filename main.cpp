@@ -1,6 +1,7 @@
-#include "Game.h"
+#include "Chess_ui.h"
+
 int main() {
-    Game game;
-    game.start();
+    ChessUI game;
+    game.run();
     return 0;
 }
