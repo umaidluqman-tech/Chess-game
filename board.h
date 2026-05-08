@@ -7,7 +7,7 @@
 using namespace std;
 
 // ============================================================
-//  BOARD CLASS  –  Demonstrates: Composition
+//  BOARD CLASS  â€“  Demonstrates: Composition
 //  The Board "contains" Piece objects (composition relationship)
 // ============================================================
 class Board {
