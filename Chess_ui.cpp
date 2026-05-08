@@ -1,404 +1,455 @@
-//// ============================================================
-////  chess_ui.cpp  —  Raylib Chess UI  (Implementation)
-////
-////  WHAT RAYLIB GIVES US:
-////    InitWindow()         → opens the OS window
-////    WindowShouldClose()  → true when user presses ✕ or ESC
-////    BeginDrawing()       → start a frame
-////    EndDrawing()         → finish frame, push to screen
-////    ClearBackground()    → fill screen with a color
-////    DrawRectangle()      → filled rectangle
-////    DrawRectangleLines() → outline rectangle
-////    DrawCircle()         → filled circle
-////    DrawText()           → ASCII text
-////    MeasureText()        → pixel width of a string (for centering)
-////    GetMouseX/Y()        → current cursor position
-////    IsMouseButtonPressed()→ click detection
-////    SetTargetFPS()       → cap frame rate (saves CPU)
-////    CloseWindow()        → clean up
-//// ============================================================
-//#include "raylib.h"
-//#include "chess_ui.h"
-//#include "Pieces.h"
-//#include <string>
-//using namespace std;
-//
-//// ============================================================
-////  Constructor
-//// ============================================================
-//ChessUI::ChessUI()
-//    : currentTurn('W'),
-//    gameOver(false),
-//    selRow(-1), selCol(-1),
-//    hasSel(false),
-//    statusMsg("White's turn - click a piece")
-//{
-//    board.initializeBoard();
-//}
-//
-//// ============================================================
-////  run()  —  THE GAME LOOP
-////
-////  This is the heart of any Raylib program:
-////
-////      InitWindow(width, height, title);
-////      SetTargetFPS(60);
-////
-////      while (!WindowShouldClose()) {   ← loop until ✕ or ESC
-////          // 1. Process input
-////          // 2. Update state
-////          // 3. Draw
-////          BeginDrawing();
-////              ...draw calls...
-////          EndDrawing();
-////      }
-////
-////      CloseWindow();
-//// ============================================================
-//void ChessUI::run() {
-//    InitWindow(WIN_W, WIN_H, "Chess Game — Raylib");
-//    SetTargetFPS(60);   // smooth without burning the CPU
-//
-//    while (!WindowShouldClose()) {
-//
-//        // --- INPUT ---
-//        // Raylib gives us mouse events outside BeginDrawing.
-//        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-//            int mx = GetMouseX();
-//            int my = GetMouseY();
-//            if (mx < BOARD_PX)          // only if clicked on board area
-//                handleClick(mx, my);
-//        }
-//
-//        // --- DRAW ---
-//        BeginDrawing();                  // must wrap ALL draw calls
-//        ClearBackground({ 30, 30, 30, 255 });   // dark grey background
-//        drawBoard();
-//        drawPieces();
-//        drawSidebar();
-//        EndDrawing();
-//
-//        if (gameOver) break;             // exit loop after drawing final state
-//    }
-//
-//    // Show the final position for 3 seconds before closing
-//    if (gameOver) {
-//        double t = GetTime();
-//        while (GetTime() - t < 3.0 && !WindowShouldClose()) {
-//            BeginDrawing();
-//            ClearBackground({ 30, 30, 30, 255 });
-//            drawBoard();
-//            drawPieces();
-//            drawSidebar();
-//            EndDrawing();
-//        }
-//    }
-//
-//    CloseWindow();
-//}
-//
-//// ============================================================
-////  drawBoard()  —  The 64 squares
-////
-////  DrawRectangle(x, y, width, height, color)
-////    x, y = top-left corner of the rectangle (pixels)
-////    Raylib origin (0,0) is TOP-LEFT of window.
-//// ============================================================
-//void ChessUI::drawBoard() {
-//    for (int r = 0; r < 8; r++) {
-//        for (int c = 0; c < 8; c++) {
-//            Color col = squareColor(r, c);
-//
-//            // Yellow highlight for the selected piece's square
-//            if (hasSel && r == selRow && c == selCol)
-//                col = { 252, 220, 60, 255 };   // bright yellow
-//
-//            DrawRectangle(c * TILE, r * TILE, TILE, TILE, col);
-//        }
-//    }
-//
-//    // Board border
-//    DrawRectangleLines(0, 0, BOARD_PX, BOARD_PX, { 80, 50, 20, 255 });
-//
-//    // Rank labels (8 down to 1) on the left edge
-//    for (int r = 0; r < 8; r++) {
-//        DrawText(TextFormat("%d", 8 - r),
-//            4,                        // x: 4px from left
-//            r * TILE + 4,             // y: 4px below top of square
-//            14,
-//            { 100, 70, 40, 255 });
-//    }
-//
-//    // File labels (a through h) at the bottom edge
-//    for (int c = 0; c < 8; c++) {
-//        DrawText(TextFormat("%c", 'a' + c),
-//            c * TILE + TILE - 12,     // x: near right of square
-//            BOARD_PX - 18,            // y: near bottom
-//            14,
-//            { 100, 70, 40, 255 });
-//    }
-//}
-//
-//// ============================================================
-////  drawPieces()  —  Draw each piece as a circle + letter
-////
-////  We draw:
-////    1. A dark outline circle
-////    2. A filled circle (white for W, near-black for B)
-////    3. The piece letter centered inside (K Q R B N P)
-////
-////  DrawCircle(centerX, centerY, radius, color)
-////  DrawText(text, x, y, fontSize, color)
-////  MeasureText(text, fontSize)  → pixel width (used to center text)
-//// ============================================================
-//void ChessUI::drawPieces() {
-//    const int RADIUS = TILE / 2 - 6;   // fits inside the square
-//    const int FONT_SIZE = 26;
-//
-//    for (int r = 0; r < 8; r++) {
-//        for (int c = 0; c < 8; c++) {
-//            Piece* p = board.getPiece(r, c);
-//            if (!p) continue;
-//
-//            // Centre of this square in pixels
-//            int cx = c * TILE + TILE / 2;
-//            int cy = r * TILE + TILE / 2;
-//
-//            // Colors
-//            bool isWhite = (p->getColor() == 'W');
-//            Color fillColor = isWhite ? Color{ 240, 240, 220, 255 }
-//            : Color{ 40,  40,  40, 255 };
-//            Color ringColor = isWhite ? Color{ 20,  20,  20, 255 }
-//            : Color{ 200, 200, 200, 255 };
-//            Color textColor = isWhite ? Color{ 20,  20,  20, 255 }
-//            : Color{ 220, 220, 220, 255 };
-//
-//            // Draw: shadow → ring → fill
-//            DrawCircle(cx + 2, cy + 2, RADIUS, { 0, 0, 0, 80 }); // shadow
-//            DrawCircle(cx, cy, RADIUS, ringColor);   // outline ring
-//            DrawCircle(cx, cy, RADIUS - 4, fillColor);   // filled circle
-//
-//            // Piece letter (second char of symbol: WK→K, BP→P …)
-//            string sym = p->getSymbol();
-//            string letter(1, sym[1]);                             // e.g. "K"
-//            int tw = MeasureText(letter.c_str(), FONT_SIZE);
-//            DrawText(letter.c_str(),
-//                cx - tw / 2,
-//                cy - FONT_SIZE / 2,
-//                FONT_SIZE,
-//                textColor);
-//        }
-//    }
-//}
-//
-//// ============================================================
-////  drawSidebar()  —  Right panel: turn, status, legend, help
-//// ============================================================
-//void ChessUI::drawSidebar() {
-//    const int SX = BOARD_PX + 10;   // sidebar X start
-//    const int W = 180;             // usable width
-//
-//    // Title
-//    DrawText("CHESS", SX + 40, 15, 28, RAYWHITE);
-//    DrawLine(SX, 55, SX + W, 55, GRAY);
-//
-//    // ---- Current turn box ----
-//    DrawText("Current Turn", SX, 65, 14, LIGHTGRAY);
-//    bool whiteTurn = (currentTurn == 'W');
-//    Color boxFill = whiteTurn ? Color{ 240, 240, 220, 255 }
-//    : Color{ 40,  40,  40, 255 };
-//    Color boxText = whiteTurn ? BLACK : WHITE;
-//    DrawRectangleRounded({ (float)SX, 85, (float)W, 38 }, 0.3f, 4, boxFill);
-//    DrawRectangleRoundedLines({ (float)SX, 85, (float)W, 38 }, 0.3f, 4, 2,
-//        whiteTurn ? DARKGRAY : LIGHTGRAY);
-//    const char* turnLabel = whiteTurn ? "WHITE" : "BLACK";
-//    int tw = MeasureText(turnLabel, 22);
-//    DrawText(turnLabel, SX + W / 2 - tw / 2, 93, 22, boxText);
-//
-//    // ---- Status message ----
-//    DrawLine(SX, 135, SX + W, 135, GRAY);
-//    DrawText("Status", SX, 143, 14, LIGHTGRAY);
-//    // Word-wrap isn't built-in; keep messages ≤ 20 chars or split manually
-//    DrawText(statusMsg.c_str(), SX, 162, 13, YELLOW);
-//
-//    // ---- Check / Checkmate indicator ----
-//    if (!gameOver && board.isInCheck(currentTurn)) {
-//        DrawRectangleRounded({ (float)SX, 190, (float)W, 36 }, 0.3f, 4, RED);
-//        int cw = MeasureText("  CHECK!", 20);
-//        DrawText("  CHECK!", SX + W / 2 - cw / 2, 198, 20, WHITE);
-//    }
-//    if (gameOver) {
-//        DrawRectangleRounded({ (float)SX, 190, (float)W, 36 }, 0.3f, 4,
-//            { 180, 30, 30, 255 });
-//        int gw = MeasureText("GAME OVER", 18);
-//        DrawText("GAME OVER", SX + W / 2 - gw / 2, 199, 18, WHITE);
-//    }
-//
-//    // ---- Legend ----
-//    DrawLine(SX, 240, SX + W, 240, GRAY);
-//    DrawText("Pieces", SX, 248, 14, LIGHTGRAY);
-//    const char* legend[] = { "K = King","Q = Queen","R = Rook",
-//                            "B = Bishop","N = Knight","P = Pawn" };
-//    for (int i = 0; i < 6; i++)
-//        DrawText(legend[i], SX, 266 + i * 18, 13, RAYWHITE);
-//
-//    // ---- How to play ----
-//    DrawLine(SX, 385, SX + W, 385, GRAY);
-//    DrawText("How to play", SX, 393, 14, LIGHTGRAY);
-//    DrawText("1. Click your piece", SX, 411, 12, RAYWHITE);
-//    DrawText("2. Click destination", SX, 427, 12, RAYWHITE);
-//    DrawText("Selected = yellow", SX, 443, 12, { 252, 220, 60, 255 });
-//
-//    // ---- Quit hint ----
-//    DrawLine(SX, 470, SX + W, 470, GRAY);
-//    DrawText("Press ESC to quit", SX, 478, 12, GRAY);
-//}
-//
-//// ============================================================
-////  squareColor()  —  Classic chess board colouring
-////  (r+c) even → light cream   (r+c) odd → warm brown
-//// ============================================================
-//Color ChessUI::squareColor(int r, int c) const {
-//    if ((r + c) % 2 == 0)
-//        return { 240, 217, 181, 255 };   // cream / light
-//    else
-//        return { 181, 136,  99, 255 };   // brown / dark
-//}
-//
-//// ============================================================
-////  handleClick()  —  Two-click move system
-////
-////  Click 1:  select one of your pieces  (turns it yellow)
-////  Click 2:  pick a destination square  (attempts the move)
-////  Click same square twice: deselect
-//// ============================================================
-//void ChessUI::handleClick(int mx, int my) {
-//    int clickRow = my / TILE;
-//    int clickCol = mx / TILE;
-//
-//    // Guard: must be within board
-//    if (clickRow < 0 || clickRow > 7 || clickCol < 0 || clickCol > 7) return;
-//
-//    if (!hasSel) {
-//        // ---- First click: select ----
-//        Piece* p = board.getPiece(clickRow, clickCol);
-//        if (p && p->getColor() == currentTurn) {
-//            selRow = clickRow;
-//            selCol = clickCol;
-//            hasSel = true;
-//            statusMsg = "Piece selected";
-//        }
-//        else {
-//            statusMsg = "Pick your piece!";
-//        }
-//    }
-//    else {
-//        // ---- Second click: move or deselect ----
-//        if (clickRow == selRow && clickCol == selCol) {
-//            // Same square → cancel selection
-//            hasSel = false;
-//            statusMsg = (currentTurn == 'W') ? "White's turn"
-//                : "Black's turn";
-//            return;
-//        }
-//
-//        if (tryMove(selRow, selCol, clickRow, clickCol)) {
-//            // Move succeeded
-//            hasSel = false;
-//            switchTurn();
-//
-//            if (board.isCheckmate(currentTurn)) {
-//                switchTurn();   // switch back to show winner
-//                string winner = (currentTurn == 'W') ? "White" : "Black";
-//                statusMsg = winner + " wins!";
-//                gameOver = true;
-//            }
-//            else if (board.isStalemate(currentTurn)) {
-//                statusMsg = "Stalemate! Draw!";
-//                gameOver = true;
-//            }
-//            else if (board.isInCheck(currentTurn)) {
-//                statusMsg = "Check!";
-//            }
-//            else {
-//                statusMsg = (currentTurn == 'W') ? "White's turn"
-//                    : "Black's turn";
-//            }
-//        }
-//        else {
-//            // tryMove() already set statusMsg with the reason
-//            hasSel = false;
-//        }
-//    }
-//}
-//
-//// ============================================================
-////  tryMove()  —  Validate & execute a move
-////  This is the same logic as game.cpp::applyMove(), unchanged.
-//// ============================================================
-//bool ChessUI::tryMove(int fr, int fc, int tr, int tc) {
-//    Piece* piece = board.getPiece(fr, fc);
-//    if (!piece || piece->getColor() != currentTurn) {
-//        statusMsg = "Not your piece!";
-//        return false;
-//    }
-//
-//    // Snapshot the board for isValidMove checks
-//    Piece* tempGrid[8][8];
-//    for (int r = 0; r < 8; r++)
-//        for (int c = 0; c < 8; c++)
-//            tempGrid[r][c] = board.getPiece(r, c);
-//
-//    if (!piece->isValidMove(tr, tc, tempGrid)) {
-//        statusMsg = "Invalid move!";
-//        return false;
-//    }
-//
-//    // Simulate to ensure King not left in check
-//    Piece* simGrid[8][8];
-//    for (int r = 0; r < 8; r++)
-//        for (int c = 0; c < 8; c++)
-//            simGrid[r][c] = tempGrid[r][c];
-//
-//    simGrid[tr][tc] = simGrid[fr][fc];
-//    simGrid[fr][fc] = nullptr;
-//    if (simGrid[tr][tc]) simGrid[tr][tc]->setPosition(tr, tc);
-//
-//    // Find the King in simulated board
-//    int kr = -1, kc = -1;
-//    for (int r = 0; r < 8; r++)
-//        for (int c = 0; c < 8; c++)
-//            if (simGrid[r][c] && simGrid[r][c]->getColor() == currentTurn
-//                && simGrid[r][c]->getSymbol().substr(1) == "K")
-//            {
-//                kr = r; kc = c;
-//            }
-//
-//    bool leavesInCheck = false;
-//    char opp = (currentTurn == 'W') ? 'B' : 'W';
-//    if (kr != -1)
-//        for (int r = 0; r < 8; r++)
-//            for (int c = 0; c < 8; c++)
-//                if (simGrid[r][c] && simGrid[r][c]->getColor() == opp)
-//                    if (simGrid[r][c]->isValidMove(kr, kc, simGrid))
-//                        leavesInCheck = true;
-//
-//    // Undo the temporary position change
-//    if (simGrid[tr][tc]) simGrid[tr][tc]->setPosition(fr, fc);
-//
-//    if (leavesInCheck) {
-//        statusMsg = "Exposes your King!";
-//        return false;
-//    }
-//
-//    // All checks passed — make the actual move
-//    Piece* captured = board.movePiece(fr, fc, tr, tc);
-//    if (captured) delete captured;
-//
-//    return true;
-//}
-//
-//// ============================================================
-//void ChessUI::switchTurn() {
-//    currentTurn = (currentTurn == 'W') ? 'B' : 'W';
-//}
+#include "Chess_ui.h"
+#include "Pieces.h"
+#include <iostream>
+
+// ============================================================
+//  Constructor
+// ============================================================
+ChessUI::ChessUI()
+    : currentTurn('W'),
+    gameOver(false),
+    selectedRow(-1), selectedCol(-1),
+    isPieceSelected(false),
+    statusMessage("White's Turn")
+{
+    // ── Window ────────────────────────────────────────────────
+    window.create(sf::VideoMode({ (unsigned)(tileSize * 8 + sidebarWidth),
+                                  (unsigned)(tileSize * 8) }),
+        "Chess Game");
+    window.setFramerateLimit(60);
+
+    // ── Font (tries project dir first, then system fonts) ─────
+    if (!font.openFromFile("arial.ttf"))
+        if (!font.openFromFile("D:/Chess Game/arial.ttf"))
+            if (!font.openFromFile("C:/Windows/Fonts/arial.ttf"))
+                if (!font.openFromFile("C:/Windows/Fonts/calibri.ttf"))
+                    std::cerr << "WARNING: Could not load any font.\n";
+
+    // ── Textures — absolute path so they always load ──────────
+    const std::string BASE = "D:/Chess Game/Assests/Pieces/";
+
+    auto loadTex = [&](std::map<std::string, sf::Texture>& map,
+        const std::string& key,
+        const std::string& file) {
+            if (!map[key].loadFromFile(BASE + file))
+                std::cerr << "Failed to load: " << BASE + file << "\n";
+        };
+
+    // Black pieces
+    loadTex(blackTextures, "BK", "black_king.jpeg");
+    loadTex(blackTextures, "BQ", "black_queen.jpeg");
+    loadTex(blackTextures, "BR", "black_rook.jpeg");
+    loadTex(blackTextures, "BB", "black_bishop.jpeg");
+    loadTex(blackTextures, "BN", "black_knight.jpeg");
+    loadTex(blackTextures, "BP", "black_pawn.jpeg");
+
+    // White pieces
+    loadTex(whiteTextures, "WK", "white_king.jpeg");
+    loadTex(whiteTextures, "WQ", "white_queen.jpeg");
+    loadTex(whiteTextures, "WR", "white_rook.jpeg");
+    loadTex(whiteTextures, "WB", "white_bishop.jpeg");
+    loadTex(whiteTextures, "WN", "white_knight.jpeg");
+    loadTex(whiteTextures, "WP", "white_pawn.jpeg");
+
+    // ── Board ─────────────────────────────────────────────────
+    board.initializeBoard();
+}
+
+// ============================================================
+//  run() — main game loop
+// ============================================================
+void ChessUI::run() {
+    while (window.isOpen()) {
+
+        // ── Events ────────────────────────────────────────────
+        while (const std::optional<sf::Event> event = window.pollEvent()) {
+
+            if (event->is<sf::Event::Closed>())
+                window.close();
+
+            if (!gameOver) {
+                if (const auto* click =
+                    event->getIf<sf::Event::MouseButtonPressed>()) {
+                    if (click->button == sf::Mouse::Button::Left)
+                        handleMouseClick(click->position.x, click->position.y);
+                }
+            }
+        }
+
+        // ── Draw ──────────────────────────────────────────────
+        window.clear(sf::Color(20, 20, 20));
+        drawBoard();
+        drawPieces();
+        drawSidebar();
+        window.display();
+    }
+}
+
+// ============================================================
+//  drawBoard()
+// ============================================================
+void ChessUI::drawBoard() {
+    const sf::Color WHITE_SQ(255, 255, 255);      // pure white squares
+    const sf::Color BLACK_SQ(30, 30, 30);       // near-black squares
+    const sf::Color CHECKMATE_RED(200, 30, 30);   // red for checkmated king
+    const sf::Color SEL_FILL(60, 40, 0);          // dark fill for selected tile
+
+    // Find the checkmated king square (if game over by checkmate)
+    int checkmateKingRow = -1, checkmateKingCol = -1;
+    if (gameOver) {
+        // Find the king of the loser (currentTurn holds the winner after switchTurn in updateStatus)
+        // We stored the winner so the loser is the opposite
+        char loser = (currentTurn == 'W') ? 'B' : 'W';
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++) {
+                Piece* p = board.getPiece(r, c);
+                if (p && p->getColor() == loser &&
+                    p->getSymbol().substr(1) == "K") {
+                    checkmateKingRow = r;
+                    checkmateKingCol = c;
+                }
+            }
+    }
+
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            sf::RectangleShape tile(sf::Vector2f((float)tileSize, (float)tileSize));
+            tile.setPosition({ (float)(c * tileSize), (float)(r * tileSize) });
+
+            // Checkmate king square → red
+            if (r == checkmateKingRow && c == checkmateKingCol) {
+                tile.setFillColor(CHECKMATE_RED);
+            }
+            // Selected piece square → dark fill + bright yellow border
+            else if (isPieceSelected && r == selectedRow && c == selectedCol) {
+                tile.setFillColor(SEL_FILL);
+                tile.setOutlineColor(sf::Color(218, 165, 0));  // dark golden yellow
+                tile.setOutlineThickness(4.f);
+            }
+            else {
+                tile.setFillColor((r + c) % 2 == 0 ? WHITE_SQ : BLACK_SQ);
+                tile.setOutlineThickness(0.f);
+            }
+
+            window.draw(tile);
+        }
+    }
+
+    // Rank & file labels
+    if (font.getInfo().family.empty()) return;
+    for (int i = 0; i < 8; i++) {
+        // Rank numbers (8..1) — color alternates to stay visible on both square colors
+        sf::Text rank(font, std::to_string(8 - i), 12);
+        rank.setFillColor((i % 2 == 0) ? sf::Color(30, 30, 30) : sf::Color(220, 220, 220));
+        rank.setPosition({ 3.f, (float)(i * tileSize) + 3.f });
+        window.draw(rank);
+
+        // File letters (a..h)
+        sf::Text file(font, std::string(1, 'a' + i), 12);
+        file.setFillColor((i % 2 == 0) ? sf::Color(30, 30, 30) : sf::Color(220, 220, 220));
+        file.setPosition({ (float)(i * tileSize + tileSize - 14),
+                           (float)(tileSize * 8 - 16) });
+        window.draw(file);
+    }
+}
+
+// ============================================================
+//  drawPieces()
+// ============================================================
+void ChessUI::drawPieces() {
+    const float PAD = 5.f;
+    const float TARGET = (float)tileSize - PAD * 2;
+
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece* p = board.getPiece(r, c);
+            if (!p) continue;
+
+            std::string sym = p->getSymbol();   // e.g. "WK", "BP"
+
+            // Look up in the correct map
+            sf::Texture* tex = nullptr;
+            if (whiteTextures.count(sym))
+                tex = &whiteTextures[sym];
+            else if (blackTextures.count(sym))
+                tex = &blackTextures[sym];
+
+            if (!tex || tex->getSize().x == 0) continue;
+
+            sf::Sprite sprite(*tex);
+            sf::Vector2u sz = tex->getSize();
+            sprite.setScale({ TARGET / sz.x, TARGET / sz.y });
+            sprite.setPosition({ (float)(c * tileSize) + PAD,
+                                  (float)(r * tileSize) + PAD });
+            window.draw(sprite);
+        }
+    }
+}
+
+// ============================================================
+//  drawSidebar()
+// ============================================================
+void ChessUI::drawSidebar() {
+    const float SX = (float)(tileSize * 8);        // sidebar left edge
+    const float SW = (float)sidebarWidth;
+    const float SH = (float)(tileSize * 8);
+
+    // Background
+    sf::RectangleShape bg({ SW, SH });
+    bg.setPosition({ SX, 0.f });
+    bg.setFillColor(sf::Color(30, 30, 30));
+    window.draw(bg);
+
+    if (font.getInfo().family.empty()) return;
+
+    // ── Title ────────────────────────────────────────────────
+    sf::Text title(font, "CHESS", 30);
+    title.setFillColor(sf::Color::White);
+    title.setPosition({ SX + 60.f, 15.f });
+    window.draw(title);
+
+    // ── Turn box ─────────────────────────────────────────────
+    bool whiteTurn = (currentTurn == 'W');
+    sf::RectangleShape turnBox({ SW - 20.f, 44.f });
+    turnBox.setPosition({ SX + 10.f, 65.f });
+    turnBox.setFillColor(whiteTurn ? sf::Color(240, 240, 220)
+        : sf::Color(40, 40, 40));
+    turnBox.setOutlineColor(sf::Color(150, 150, 150));
+    turnBox.setOutlineThickness(1.f);
+    window.draw(turnBox);
+
+    sf::Text turnText(font, whiteTurn ? "WHITE'S TURN" : "BLACK'S TURN", 18);
+    turnText.setFillColor(whiteTurn ? sf::Color::Black : sf::Color::White);
+    turnText.setPosition({ SX + 20.f, 74.f });
+    window.draw(turnText);
+
+    // ── Status message ────────────────────────────────────────
+    sf::Text status(font, statusMessage, 16);
+    status.setFillColor(sf::Color(255, 220, 60));
+    status.setPosition({ SX + 10.f, 125.f });
+    window.draw(status);
+
+    // ── CHECK banner (only shown when NOT game over) ──────────
+    if (!gameOver && board.isInCheck(currentTurn)) {
+        sf::RectangleShape checkBox({ SW - 20.f, 40.f });
+        checkBox.setPosition({ SX + 10.f, 150.f });
+        checkBox.setFillColor(sf::Color(180, 30, 30));
+        checkBox.setOutlineColor(sf::Color(255, 100, 100));
+        checkBox.setOutlineThickness(2.f);
+        window.draw(checkBox);
+
+        sf::Text checkTxt(font, "  !! CHECK !!", 20);
+        checkTxt.setFillColor(sf::Color::White);
+        checkTxt.setStyle(sf::Text::Bold);
+        checkTxt.setPosition({ SX + 18.f, 158.f });
+        window.draw(checkTxt);
+    }
+
+    // ── CHECKMATE / GAME OVER banner ─────────────────────────
+    if (gameOver) {
+        // Big red background box
+        sf::RectangleShape overBox({ SW - 20.f, 70.f });
+        overBox.setPosition({ SX + 10.f, 150.f });
+        overBox.setFillColor(sf::Color(210, 20, 20));      // vivid red
+        overBox.setOutlineColor(sf::Color(255, 80, 80));   // lighter red border
+        overBox.setOutlineThickness(3.f);
+        window.draw(overBox);
+
+        sf::Text overTxt1(font, "CHECKMATE!", 22);
+        overTxt1.setFillColor(sf::Color::White);
+        overTxt1.setStyle(sf::Text::Bold);
+        overTxt1.setPosition({ SX + 18.f, 156.f });
+        window.draw(overTxt1);
+
+        sf::Text overTxt2(font, statusMessage, 14);
+        overTxt2.setFillColor(sf::Color(255, 220, 220));
+        overTxt2.setPosition({ SX + 14.f, 192.f });
+        window.draw(overTxt2);
+    }
+
+    // ── Legend ───────────────────────────────────────────────
+    sf::Text leg(font, "Pieces:", 14);
+    leg.setFillColor(sf::Color(180, 180, 180));
+    leg.setPosition({ SX + 10.f, 210.f });
+    window.draw(leg);
+
+    const char* legend[] = {
+        "K = King",   "Q = Queen", "R = Rook",
+        "B = Bishop", "N = Knight","P = Pawn"
+    };
+    for (int i = 0; i < 6; i++) {
+        sf::Text l(font, legend[i], 13);
+        l.setFillColor(sf::Color::White);
+        l.setPosition({ SX + 10.f, 230.f + i * 20.f });
+        window.draw(l);
+    }
+
+    // ── How to play ───────────────────────────────────────────
+    sf::Text how(font, "How to play:", 14);
+    how.setFillColor(sf::Color(180, 180, 180));
+    how.setPosition({ SX + 10.f, 365.f });
+    window.draw(how);
+
+    sf::Text h1(font, "1. Click your piece", 13);
+    h1.setFillColor(sf::Color::White);
+    h1.setPosition({ SX + 10.f, 385.f });
+    window.draw(h1);
+
+    sf::Text h2(font, "2. Click destination", 13);
+    h2.setFillColor(sf::Color::White);
+    h2.setPosition({ SX + 10.f, 403.f });
+    window.draw(h2);
+
+    sf::Text h3(font, "Selected = yellow", 13);
+    h3.setFillColor(sf::Color(252, 220, 60));
+    h3.setPosition({ SX + 10.f, 421.f });
+    window.draw(h3);
+}
+
+// ============================================================
+//  handleMouseClick()
+// ============================================================
+void ChessUI::handleMouseClick(int x, int y) {
+    // Ignore clicks in sidebar
+    if (x >= tileSize * 8) return;
+
+    int col = x / tileSize;
+    int row = y / tileSize;
+
+    // Guard bounds
+    if (row < 0 || row > 7 || col < 0 || col > 7) return;
+
+    if (!isPieceSelected) {
+        // ── First click: select a piece ───────────────────────
+        Piece* p = board.getPiece(row, col);
+        if (p && p->getColor() == currentTurn) {
+            selectedRow = row;
+            selectedCol = col;
+            isPieceSelected = true;
+            statusMessage = "Piece selected";
+        }
+        else {
+            statusMessage = "Pick your own piece!";
+        }
+
+    }
+    else {
+        // ── Second click: move or deselect ────────────────────
+        if (row == selectedRow && col == selectedCol) {
+            // Clicked same square → cancel
+            isPieceSelected = false;
+            statusMessage = (currentTurn == 'W') ? "White's Turn"
+                : "Black's Turn";
+            return;
+        }
+
+        if (tryMove(selectedRow, selectedCol, row, col)) {
+            isPieceSelected = false;
+            switchTurn();
+            updateStatusAfterMove();
+        }
+        else {
+            // Invalid move — let player reselect
+            isPieceSelected = false;
+        }
+    }
+}
+
+// ============================================================
+//  tryMove() — identical logic to game.cpp::applyMove()
+//  Returns true only if the move is fully legal.
+// ============================================================
+bool ChessUI::tryMove(int fr, int fc, int tr, int tc) {
+    Piece* piece = board.getPiece(fr, fc);
+    if (!piece || piece->getColor() != currentTurn) {
+        statusMessage = "Not your piece!";
+        return false;
+    }
+
+    // Build grid snapshot for isValidMove
+    Piece* tempGrid[8][8];
+    for (int r = 0; r < 8; r++)
+        for (int c = 0; c < 8; c++)
+            tempGrid[r][c] = board.getPiece(r, c);
+
+    if (!piece->isValidMove(tr, tc, tempGrid)) {
+        statusMessage = "Invalid move!";
+        return false;
+    }
+
+    // Simulate move and check king safety
+    Piece* simGrid[8][8];
+    for (int r = 0; r < 8; r++)
+        for (int c = 0; c < 8; c++)
+            simGrid[r][c] = tempGrid[r][c];
+
+    simGrid[tr][tc] = simGrid[fr][fc];
+    simGrid[fr][fc] = nullptr;
+    if (simGrid[tr][tc])
+        simGrid[tr][tc]->setPosition(tr, tc);
+
+    // Find our King in simulated board
+    int kr = -1, kc = -1;
+    for (int r = 0; r < 8; r++)
+        for (int c = 0; c < 8; c++)
+            if (simGrid[r][c] &&
+                simGrid[r][c]->getColor() == currentTurn &&
+                simGrid[r][c]->getSymbol().substr(1) == "K")
+            {
+                kr = r; kc = c;
+            }
+
+    bool leavesInCheck = false;
+    char opp = (currentTurn == 'W') ? 'B' : 'W';
+    if (kr != -1)
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++)
+                if (simGrid[r][c] && simGrid[r][c]->getColor() == opp)
+                    if (simGrid[r][c]->isValidMove(kr, kc, simGrid))
+                        leavesInCheck = true;
+
+    // Undo temp position change
+    if (simGrid[tr][tc])
+        simGrid[tr][tc]->setPosition(fr, fc);
+
+    if (leavesInCheck) {
+        statusMessage = "Exposes your King!";
+        return false;
+    }
+
+    // Commit the real move
+    Piece* captured = board.movePiece(fr, fc, tr, tc);
+    if (captured) delete captured;
+
+    return true;
+}
+
+// ============================================================
+//  switchTurn()
+// ============================================================
+void ChessUI::switchTurn() {
+    currentTurn = (currentTurn == 'W') ? 'B' : 'W';
+}
+
+// ============================================================
+//  updateStatusAfterMove() — check/checkmate/stalemate
+// ============================================================
+void ChessUI::updateStatusAfterMove() {
+    if (board.isCheckmate(currentTurn)) {
+        // Switch back to name the winner
+        switchTurn();
+        std::string winner = (currentTurn == 'W') ? "White" : "Black";
+        statusMessage = winner + " wins! Checkmate!";
+        gameOver = true;
+    }
+    else if (board.isStalemate(currentTurn)) {
+        statusMessage = "Stalemate! It's a draw!";
+        gameOver = true;
+    }
+    else if (board.isInCheck(currentTurn)) {
+        statusMessage = "CHECK!";
+    }
+    else {
+        statusMessage = (currentTurn == 'W') ? "White's Turn" : "Black's Turn";
+    }
+}
