@@ -7,7 +7,7 @@
 using namespace std;
 
 // ============================================================
-//  GAME CLASS  –  Manages turns, input, win/loss detection
+//  GAME CLASS  â€“  Manages turns, input, win/loss detection
 // ============================================================
 class Game {
 private:
