@@ -4,21 +4,18 @@
 #include <iomanip>
 using namespace std;
 
-// ----------------------------------------------------------
 Board::Board() {
-    for (int r = 0; r < 8; r++)
-        for (int c = 0; c < 8; c++)
-            grid[r][c] = nullptr;
+    for (int r=0;r<8;++r)
+        for (int c=0;c<8;++c)
+            grid[r][c]=nullptr;
 }
 
-// ----------------------------------------------------------
 Board::~Board() {
     for (int r = 0; r < 8; r++)
         for (int c = 0; c < 8; c++)
             delete grid[r][c];
 }
 
-// ----------------------------------------------------------
 void Board::initializeBoard() {
     // Clear first
     for (int r = 0; r < 8; r++)
@@ -39,7 +36,7 @@ void Board::initializeBoard() {
     for (int c = 0; c < 8; c++)
         grid[1][c] = new Pawn('B', 1, c);
 
-    // --- White pieces (bottom, rows 6-7) ---
+    // White pieces (bottom, rows 6-7) 
     for (int c = 0; c < 8; c++)
         grid[6][c] = new Pawn('W', 6, c);
     grid[7][0] = new Rook('W', 7, 0);
@@ -52,13 +49,12 @@ void Board::initializeBoard() {
     grid[7][7] = new Rook('W', 7, 7);
 }
 
-// ----------------------------------------------------------
 void Board::display() const {
-    const string BORDER = "  +----+----+----+----+----+----+----+----+";
+  /*  const string BORDER = "  +----+----+----+----+----+----+----+----+";
     const string FILES = "     a    b    c    d    e    f    g    h";
 
     cout << "\n" << FILES << "\n";
-    cout << BORDER << "\n";
+    cout << BORDER << "\n";*/
 
     for (int r = 0; r < 8; r++) {
         cout << (8 - r) << " |";
@@ -74,12 +70,11 @@ void Board::display() const {
             }
         }
         cout << " " << (8 - r) << "\n";
-        cout << BORDER << "\n";
+      //  cout << BORDER << "\n";
     }
 
-    cout << FILES << "\n\n";
+    //cout << FILES << "\n\n";
 }
-// ----------------------------------------------------------
 Piece* Board::getPiece(int row, int col) const {
     if (row < 0 || row > 7 || col < 0 || col > 7) return nullptr;
     return grid[row][col];
@@ -88,8 +83,6 @@ Piece* Board::getPiece(int row, int col) const {
 void Board::setPiece(int row, int col, Piece* piece) {
     grid[row][col] = piece;
 }
-
-// ----------------------------------------------------------
 Piece* Board::movePiece(int fromRow, int fromCol, int toRow, int toCol) {
     Piece* captured = grid[toRow][toCol];   // May be nullptr
 
@@ -104,7 +97,6 @@ Piece* Board::movePiece(int fromRow, int fromCol, int toRow, int toCol) {
     return captured;
 }
 
-// ----------------------------------------------------------
 // isInCheck: is the 'color' King currently attacked?
 bool Board::isInCheck(char color) const {
     // Find the King
@@ -131,7 +123,6 @@ bool Board::isInCheck(char color) const {
     return false;
 }
 
-// ----------------------------------------------------------
 // hasLegalMove: does 'color' have at least one move that doesn't leave King in check?
 bool Board::hasLegalMove(char color) const {
     for (int fr = 0; fr < 8; fr++)
@@ -188,6 +179,7 @@ bool Board::hasLegalMove(char color) const {
 
 bool Board::isCheckmate(char color) const {
     return isInCheck(color) && !hasLegalMove(color);
+   
 }
 
 bool Board::isStalemate(char color) const {
