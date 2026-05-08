@@ -98,7 +98,7 @@ public:
         if (!((dr == 2 && dc == 1) || (dr == 1 && dc == 2)))
             return false;
 
-        // Knights jump over pieces – only check destination
+        // Knights jump over pieces â€“ only check destination
         return (board[toRow][toCol] == nullptr ||
             board[toRow][toCol]->getColor() != color);
     }
