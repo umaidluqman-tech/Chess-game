@@ -1,7 +1,9 @@
 #include "Chess_ui.h"
-
+#include"game.h"
 int main() {
-    ChessUI game;
-    game.run();
+    ChessUI GameG;
+    GameG.run();
+    Game game;
+    game.start();
     return 0;
 }
